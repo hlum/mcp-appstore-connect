@@ -116,7 +116,8 @@ export const registerIapTools = (
       description:
         "List an app's in-app purchases (name, productId, type, review state). Returns the " +
         "inAppPurchase ids the pricing tools take. Covers one-time purchases only — " +
-        "auto-renewable subscriptions live under subscription groups and are not exposed here.",
+        "auto-renewable subscriptions live under subscription groups: use " +
+        "app_store_connect_list_subscription_groups.",
       inputSchema: z.object({
         appId: appIdArg,
         productId: z.string().optional().describe('Filter by productId, e.g. "com.acme.app.pro".'),
@@ -328,6 +329,58 @@ export const registerIapTools = (
   );
 
   if (!allowWrites) return;
+
+  server.registerTool(
+    "app_store_connect_create_in_app_purchase",
+    {
+      title: "App Store Connect: Create In-App Purchase",
+      description:
+        "Create a one-time in-app purchase (consumable, non-consumable such as a lifetime " +
+        "unlock, or non-renewing subscription). The productId is permanent: it must match what " +
+        "the app asks StoreKit for and can never be reused, even after deletion. `name` is the " +
+        "internal reference name; customers see the localization's display name. Afterwards " +
+        "add a localization, a price, availability and a review screenshot. Auto-renewable " +
+        "subscriptions are created with app_store_connect_create_subscription instead.",
+      inputSchema: z.object({
+        appId: appIdArg,
+        productId: z
+          .string()
+          .min(1)
+          .describe('The StoreKit product identifier, e.g. "com.acme.app.lifetime". Permanent.'),
+        name: z
+          .string()
+          .min(1)
+          .describe("Internal reference name shown only in App Store Connect (30-char limit)."),
+        inAppPurchaseType: z.enum(IAP_TYPES),
+        reviewNote: z.string().optional().describe("Note to App Review. Shown only to Apple."),
+        familySharable: z
+          .boolean()
+          .optional()
+          .describe("Whether Family Sharing covers it. Turning it off later is a takeback."),
+        confirm: confirmArg,
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    async ({ appId, productId, name, inAppPurchaseType, reviewNote, familySharable }) =>
+      wrap(async () => {
+        assertWithinLimits({ name });
+        return summarizeResponse(
+          await client.post("/v2/inAppPurchases", {
+            data: {
+              type: "inAppPurchases",
+              attributes: compact({
+                name,
+                productId,
+                inAppPurchaseType,
+                reviewNote,
+                familySharable,
+              }),
+              relationships: { app: { data: { type: "apps", id: appId } } },
+            },
+          }),
+        );
+      }),
+  );
 
   server.registerTool(
     "app_store_connect_set_in_app_purchase_price",

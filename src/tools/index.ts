@@ -21,6 +21,7 @@ import { registerReviewDetailTools } from "#/tools/reviewdetails";
 import { registerScreenshotTools } from "#/tools/screenshots";
 import { registerStatusTool } from "#/tools/status";
 import { registerSubmissionTools } from "#/tools/submissions";
+import { registerSubscriptionTools } from "#/tools/subscriptions";
 import { registerTestflightTools } from "#/tools/testflight";
 import { registerUserTools } from "#/tools/users";
 import { registerVersionTools } from "#/tools/versions";
@@ -79,6 +80,7 @@ export const registerTools = (
   registerPricingTools(server, client, allowWrites);
   registerReviewDetailTools(server, client, ctx);
   registerIapTools(server, client, allowWrites);
+  registerSubscriptionTools(server, client, allowWrites);
   registerListingTools(server, client, ctx);
   registerScreenshotTools(server, client, allowWrites);
   registerBuildTools(server, client, allowWrites);
