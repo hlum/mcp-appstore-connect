@@ -7,7 +7,9 @@ import type { AppStoreConnectClient, Query } from "#/client/asc";
 import { AppStoreConnectApiError, PreconditionError, WritesDisabledError } from "#/client/errors";
 import { compact } from "#/client/shape";
 import {
+  attributesOf,
   isRecord,
+  type Rec,
   relatedId,
   resourcesOf,
   summarizeResource,
@@ -316,6 +318,36 @@ export const getOrNull = async <T>(
     if (err instanceof AppStoreConnectApiError && err.status === 404) return null;
     throw err;
   }
+};
+
+/**
+ * Hunting one price in a territory's catalogue. Apple publishes ~800 price
+ * points per territory and has no price filter, so one 200-row page usually
+ * misses the price wanted ($79.99 sits on page 2 in the USA) — which reads as
+ * "that price doesn't exist". With `customerPrice` the list tools read every
+ * page and keep only the matches.
+ */
+export const customerPriceArg = z
+  .string()
+  .optional()
+  .describe(
+    'Only the price points charging exactly this, e.g. "79.99". Searches every page of the ' +
+      "catalogue, so use it rather than paging by hand.",
+  );
+
+export const pricePointsAt = async (
+  client: AppStoreConnectClient,
+  path: string,
+  territory: string,
+  customerPrice: string,
+): Promise<{ data: unknown[]; searched: number }> => {
+  const { data } = await client.getAll<Rec>(path, { "filter[territory]": territory, limit: 200 });
+  return {
+    data: data
+      .filter((point) => attributesOf(point).customerPrice === customerPrice)
+      .map((point) => summarizeResource(point)),
+    searched: data.length,
+  };
 };
 
 /**

@@ -27,9 +27,11 @@ import {
   appIdArg,
   compact,
   confirmArg,
+  customerPriceArg,
   getOrNull,
   limitArg,
   PreconditionError,
+  pricePointsAt,
   savePathArg,
   territoryArg,
   wrap,
@@ -176,19 +178,27 @@ export const registerIapTools = (
       inputSchema: z.object({
         inAppPurchaseId: inAppPurchaseIdArg,
         territory: territoryArg,
+        customerPrice: customerPriceArg,
         limit: limitArg,
         savePath: savePathArg,
       }),
       annotations: { readOnlyHint: true },
     },
-    async ({ inAppPurchaseId, territory, limit, savePath }) =>
+    async ({ inAppPurchaseId, territory, customerPrice, limit, savePath }) =>
       wrapSaved(savePath, async () =>
-        summarizeResponse(
-          await client.get(`/v2/inAppPurchases/${inAppPurchaseId}/pricePoints`, {
-            "filter[territory]": territory,
-            limit,
-          }),
-        ),
+        customerPrice !== undefined
+          ? pricePointsAt(
+              client,
+              `/v2/inAppPurchases/${inAppPurchaseId}/pricePoints`,
+              territory,
+              customerPrice,
+            )
+          : summarizeResponse(
+              await client.get(`/v2/inAppPurchases/${inAppPurchaseId}/pricePoints`, {
+                "filter[territory]": territory,
+                limit,
+              }),
+            ),
       ),
   );
 

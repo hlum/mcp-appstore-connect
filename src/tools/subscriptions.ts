@@ -17,9 +17,11 @@ import {
   appIdArg,
   compact,
   confirmArg,
+  customerPriceArg,
   getOrNull,
   limitArg,
   PreconditionError,
+  pricePointsAt,
   savePathArg,
   territoryArg,
   wrap,
@@ -226,19 +228,27 @@ export const registerSubscriptionTools = (
       inputSchema: z.object({
         subscriptionId: subscriptionIdArg,
         territory: territoryArg,
+        customerPrice: customerPriceArg,
         limit: limitArg,
         savePath: savePathArg,
       }),
       annotations: { readOnlyHint: true },
     },
-    async ({ subscriptionId, territory, limit, savePath }) =>
+    async ({ subscriptionId, territory, customerPrice, limit, savePath }) =>
       wrapSaved(savePath, async () =>
-        summarizeResponse(
-          await client.get(`/v1/subscriptions/${subscriptionId}/pricePoints`, {
-            "filter[territory]": territory,
-            limit,
-          }),
-        ),
+        customerPrice !== undefined
+          ? pricePointsAt(
+              client,
+              `/v1/subscriptions/${subscriptionId}/pricePoints`,
+              territory,
+              customerPrice,
+            )
+          : summarizeResponse(
+              await client.get(`/v1/subscriptions/${subscriptionId}/pricePoints`, {
+                "filter[territory]": territory,
+                limit,
+              }),
+            ),
       ),
   );
 

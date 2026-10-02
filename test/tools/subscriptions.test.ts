@@ -346,3 +346,40 @@ describe("subscription availability and submission", () => {
     expect(postCall(fetchImpl, "/v1/subscriptionSubmissions")).toBeUndefined();
   });
 });
+
+describe("finding a price point", () => {
+  it("searches every page for a customer price", async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      String(url).includes("cursor=")
+        ? jsonResponse({
+            data: [
+              {
+                id: "p-7999",
+                type: "inAppPurchasePricePoints",
+                attributes: { customerPrice: "79.99" },
+              },
+            ],
+          })
+        : jsonResponse({
+            data: [
+              {
+                id: "p-499",
+                type: "inAppPurchasePricePoints",
+                attributes: { customerPrice: "4.99" },
+              },
+            ],
+            links: {
+              next: "https://api.appstoreconnect.apple.com/v2/inAppPurchases/1/pricePoints?cursor=AQ",
+            },
+          }),
+    );
+    const result = await callTool(
+      "app_store_connect_list_iap_price_points",
+      { inAppPurchaseId: "1", territory: "USA", customerPrice: "79.99" },
+      fetchImpl,
+    );
+    const payload = payloadOf(result);
+    expect((payload.data as { id: string }[]).map((p) => p.id)).toEqual(["p-7999"]);
+    expect(payload.searched).toBe(2);
+  });
+});
